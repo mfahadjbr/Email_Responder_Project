@@ -12,7 +12,8 @@
 
 # Local History for Visual Studio Code
 .history/
-Email_Responder/
+Email_Responder/ 
+# this is not include the file in the github
 
 # Built Visual Studio Code Extensions
 *.vsix
