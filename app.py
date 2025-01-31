@@ -52,7 +52,7 @@ def list_emails(service):
     if not messages:
         print("No unread messages found.")
     else:
-        for message in messages[:7]:
+        for message in messages[:4]:
             msg = service.users().messages().get(userId='me', id=message['id']).execute()
             headers = msg['payload']['headers']
             subject = next((header['value'] for header in headers if header['name'] == 'Subject'), "No Subject")
@@ -160,40 +160,14 @@ def send_email_response(service, sender_email, subject, response_content):
         return False
 
 
-st.markdown(
-    """
-    <style>
-        .main {
-            background-color: #e0f7fa;
-        }
-        .sidebar .sidebar-content {
-            background-color: #b2ebf2;
-        }
-        h1, h2, h3, h4, h5, h6 {
-            color: #00796b;
-        }
-        .stButton>button {
-            background-color: #00796b;
-            color: white;
-        }
-        .stButton>button:hover {
-            background-color: #004d40;
-            color: white;
-        }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-# App title
-st.title("📧 Gmail Assistant Generator")
+# Streamlit UI
+st.title("Gmail Assistant")
 
 # Authenticate Gmail
 service = authenticate_gmail()
-
-# Initialize session state
-if 'edited_response' not in state:
-    state['edited_response'] = ""
+# Initialize edited_response in session_state
+if 'edited_response' not in st.session_state:
+    st.session_state['edited_response'] = ""
 
 # Fetch unread emails
 emails = list_emails(service)
@@ -201,22 +175,20 @@ emails = list_emails(service)
 # Responded emails list
 responded_emails = []
 
-# Sidebar for unread emails
-st.sidebar.title("Unread Emails")
 if emails:
-    for idx, email in enumerate(emails, 1):
-        st.sidebar.write(f"{idx}. {email['subject']} (From: {email['sender']})")
-        if check_if_responded(service, email['id']):
-            responded_emails.append({'subject': email['subject'], 'sender': email['sender']})
-else:
-    st.sidebar.write("No unread emails found.")
+    col1, col2 = st.columns([1, 1])
+    
+    # Left sidebar (Unread Emails)
+    with col1:
+        st.write("### Unread Emails")
+        for idx, email in enumerate(emails, 1):
+            st.text(f"{idx}. {email['subject']} (From: {email['sender']})")
+            if check_if_responded(service, email['id']):
+                responded_emails.append({'subject': email['subject'], 'sender': email['sender']})
 
-# Main content
-st.write("### Select an email to view details")
-if emails:
-    email_select = st.selectbox(
-        "Select an email", [""] + [f"{email['subject']} (From: {email['sender']})" for email in emails]
-    )
+    # Right sidebar (Responded Emails)
+    st.write("### Select an email to view details")
+    email_select = st.selectbox("Select an email", [""] + [f"{email['subject']} (From: {email['sender']})" for email in emails])
 
     if email_select:
         selected_email = emails[[f"{email['subject']} (From: {email['sender']})" for email in emails].index(email_select)]
@@ -225,29 +197,34 @@ if emails:
         details, response = extract_and_respond(selected_email['message'])
 
         st.write("### Email Details:")
-        st.write(f"**Sender**: {details['Sender']}")
-        st.write(f"**Subject**: {details['Subject']}")
-        st.write(f"**Content**: {details['Content']}")
+        st.write(f"*Sender*: {details['Sender']}")
+        st.write(f"*Subject*: {details['Subject']}")
+        st.write(f"*Content*: {details['Content']}")
 
-        # Display and allow editing of the response
-        if not state['edited_response']:
-            state['edited_response'] = response
+        # Initialize the response in session state
+        if 'edited_response' not in st.session_state or not st.session_state['edited_response']:
+            st.session_state['edited_response'] = response
 
+        # Display the editable text area
         st.write("### Generated Response:")
-        state['edited_response'] = st.text_area("Edit the response", state['edited_response'], height=200)
+        st.session_state['edited_response'] = st.text_area("Edit the response", st.session_state['edited_response'], height=200)
 
-        # Send response button
+        # Send email response button
         if st.button("Send Response"):
-            success = send_email_response(service, details["Sender"], details["Subject"], state['edited_response'])
+            success = send_email_response(service, details["Sender"], details["Subject"], st.session_state['edited_response'])
             if success:
                 st.success(f"Response sent to {details['Sender']}")
+                # Mark the email as read
                 mark_as_read(service, selected_email['id'])
+                # Add this email to responded list
                 responded_emails.append({'subject': details['Subject'], 'sender': details['Sender']})
+                with col2:
+                    st.write("### Responded Emails")
+                    if responded_emails:
+                        for idx, email in enumerate(responded_emails, 1):
+                            st.text(f"{idx}. {email['subject']} (From: {email['sender']})")
+                    else:
+                        st.text("No responded emails yet.")
 
-# Display responded emails
-st.write("### Responded Emails")
-if responded_emails:
-    for idx, email in enumerate(responded_emails, 1):
-        st.write(f"{idx}. {email['subject']} (From: {email['sender']})")
 else:
-    st.write("No responded emails yet.")
+    st.write("No unread emails found.")

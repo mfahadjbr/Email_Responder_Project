@@ -9,10 +9,9 @@
 !.vscode/launch.json
 !.vscode/extensions.json
 !.vscode/*.code-snippets
+venv/
+# Local History for Visual Studio Code 
 
-# Local History for Visual Studio Code
-.history/
-Email_Responder/ 
 # this is not include the file in the github show this
 
 # Built Visual Studio Code Extensions3333
